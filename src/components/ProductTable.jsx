@@ -128,7 +128,7 @@ export default function ProductTable({ products, loading, onEditClick }) {
             <thead>
               <tr className="border-b border-ink-700 bg-ink-900/50">
                 <th
-                  className="sticky top-16 left-0 z-30 bg-ink-900/95 backdrop-blur-md text-left px-4 py-3 font-display text-xs font-semibold text-slate-400 uppercase tracking-wider"
+                  className="sticky top-0 left-0 z-30 bg-ink-900/95 backdrop-blur-md text-left px-4 py-3 font-display text-xs font-semibold text-slate-400 uppercase tracking-wider"
                 >
                   Product
                 </th>
@@ -136,21 +136,21 @@ export default function ProductTable({ products, loading, onEditClick }) {
                 {SIZE_ORDER.map(size => (
                   <th
                     key={size}
-                    className="sticky top-16 z-20 bg-ink-900/95 backdrop-blur-md text-center px-3 py-3 font-display text-xs font-semibold text-slate-400 uppercase tracking-wider"
+                    className="sticky top-0 z-20 bg-ink-900/95 backdrop-blur-md text-center px-3 py-3 font-display text-xs font-semibold text-slate-400 uppercase tracking-wider"
                   >
                     {size}
                   </th>
                 ))}
 
                 <th
-                  className="sticky top-16 z-20 bg-ink-900/95 backdrop-blur-md text-center px-3 py-3 font-display text-xs font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-amber-400 transition-colors select-none"
+                  className="sticky top-0 z-20 bg-ink-900/95 backdrop-blur-md text-center px-3 py-3 font-display text-xs font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-amber-400 transition-colors select-none"
                   onClick={() => toggleSort('total_inventory')}
                 >
                   Total <SortIcon col="total_inventory" />
                 </th>
 
                 <th
-                  className="sticky top-16 z-20 bg-ink-900/95 backdrop-blur-md text-center px-3 py-3 font-display text-xs font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-amber-400 transition-colors select-none"
+                  className="sticky top-0 z-20 bg-ink-900/95 backdrop-blur-md text-center px-3 py-3 font-display text-xs font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-amber-400 transition-colors select-none"
                   onClick={() => toggleSort('latest_updated_date')}
                 >
                   Updated <SortIcon col="latest_updated_date" />
@@ -158,7 +158,7 @@ export default function ProductTable({ products, loading, onEditClick }) {
 
                 {isManager && (
                   <th
-                    className="sticky top-16 z-20 bg-ink-900/95 backdrop-blur-md text-center px-3 py-3 font-display text-xs font-semibold text-slate-400 uppercase tracking-wider"
+                    className="sticky top-0 z-20 bg-ink-900/95 backdrop-blur-md text-center px-3 py-3 font-display text-xs font-semibold text-slate-400 uppercase tracking-wider"
                   >
                     Action
                   </th>
