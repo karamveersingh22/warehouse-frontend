@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react'
 import { useAuth } from '../context/AuthContext'
 
+const SIZE_ORDER = ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL']
+
 function formatDate(dateStr) {
   if (!dateStr) return '—'
   return new Date(dateStr).toLocaleString('en-IN', {
@@ -9,10 +11,10 @@ function formatDate(dateStr) {
   })
 }
 
-function SkeletonRow() {
+function SkeletonRow({ colCount }) {
   return (
     <tr>
-      {[1,2,3,4,5].map(i => (
+      {Array.from({ length: colCount }).map((_, i) => (
         <td key={i} className="px-4 py-4">
           <div className="skeleton h-4 w-full" />
         </td>
@@ -27,6 +29,9 @@ export default function ProductTable({ products, loading, onEditClick }) {
   const [categoryFilter, setCategoryFilter] = useState('')
   const [sortKey, setSortKey]       = useState('latest_updated_date')
   const [sortDir, setSortDir]       = useState('desc')
+
+  const isManager = user?.role === 'manager'
+  const colCount = 1 + SIZE_ORDER.length + 2 + (isManager ? 1 : 0)
 
   const categories = useMemo(() => {
     const cats = [...new Set(products.map(p => p.category).filter(Boolean))]
@@ -51,7 +56,10 @@ export default function ProductTable({ products, loading, onEditClick }) {
     list.sort((a, b) => {
       let va = a[sortKey], vb = b[sortKey]
       if (sortKey === 'latest_updated_date') {
-        va = new Date(va); vb = new Date(vb)
+        va = new Date(va || 0); vb = new Date(vb || 0)
+      }
+      if (sortKey === 'total_inventory') {
+        va = Number(va ?? 0); vb = Number(vb ?? 0)
       }
       if (va < vb) return sortDir === 'asc' ? -1 : 1
       if (va > vb) return sortDir === 'asc' ? 1 : -1
@@ -113,38 +121,57 @@ export default function ProductTable({ products, loading, onEditClick }) {
         )}
       </div>
 
-      {/* Desktop Table */}
-      <div className="card overflow-hidden hidden md:block">
+      {/* Matrix Table (same UI for manager + worker) */}
+      <div className="card">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-ink-700 bg-ink-900/50">
-                <th className="text-left px-4 py-3 font-display text-xs font-semibold text-slate-400 uppercase tracking-wider">SKU Code</th>
-                <th className="text-left px-4 py-3 font-display text-xs font-semibold text-slate-400 uppercase tracking-wider">Product Name</th>
-                <th className="text-left px-4 py-3 font-display text-xs font-semibold text-slate-400 uppercase tracking-wider">Category</th>
                 <th
-                  className="text-left px-4 py-3 font-display text-xs font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-amber-400 transition-colors select-none"
-                  onClick={() => toggleSort('inventory')}
+                  className="sticky top-16 left-0 z-30 bg-ink-900/95 backdrop-blur-md text-left px-4 py-3 font-display text-xs font-semibold text-slate-400 uppercase tracking-wider"
                 >
-                  Inventory <SortIcon col="inventory" />
+                  Product
                 </th>
+
+                {SIZE_ORDER.map(size => (
+                  <th
+                    key={size}
+                    className="sticky top-16 z-20 bg-ink-900/95 backdrop-blur-md text-center px-3 py-3 font-display text-xs font-semibold text-slate-400 uppercase tracking-wider"
+                  >
+                    {size}
+                  </th>
+                ))}
+
                 <th
-                  className="text-left px-4 py-3 font-display text-xs font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-amber-400 transition-colors select-none"
+                  className="sticky top-16 z-20 bg-ink-900/95 backdrop-blur-md text-center px-3 py-3 font-display text-xs font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-amber-400 transition-colors select-none"
+                  onClick={() => toggleSort('total_inventory')}
+                >
+                  Total <SortIcon col="total_inventory" />
+                </th>
+
+                <th
+                  className="sticky top-16 z-20 bg-ink-900/95 backdrop-blur-md text-center px-3 py-3 font-display text-xs font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-amber-400 transition-colors select-none"
                   onClick={() => toggleSort('latest_updated_date')}
                 >
-                  Last Updated <SortIcon col="latest_updated_date" />
+                  Updated <SortIcon col="latest_updated_date" />
                 </th>
-                {user?.role === 'manager' && (
-                  <th className="text-left px-4 py-3 font-display text-xs font-semibold text-slate-400 uppercase tracking-wider">Action</th>
+
+                {isManager && (
+                  <th
+                    className="sticky top-16 z-20 bg-ink-900/95 backdrop-blur-md text-center px-3 py-3 font-display text-xs font-semibold text-slate-400 uppercase tracking-wider"
+                  >
+                    Action
+                  </th>
                 )}
               </tr>
             </thead>
+
             <tbody className="divide-y divide-ink-700">
               {loading ? (
-                Array(5).fill(0).map((_, i) => <SkeletonRow key={i} />)
+                Array(8).fill(0).map((_, i) => <SkeletonRow key={i} colCount={colCount} />)
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={user?.role === 'manager' ? 6 : 5} className="px-4 py-12 text-center">
+                  <td colSpan={colCount} className="px-4 py-12 text-center">
                     <p className="text-slate-500 font-body">No products found</p>
                   </td>
                 </tr>
@@ -155,32 +182,47 @@ export default function ProductTable({ products, loading, onEditClick }) {
                     className="hover:bg-ink-700/40 transition-colors animate-fadeUp"
                     style={{ animationDelay: `${i * 0.03}s` }}
                   >
-                    <td className="px-4 py-4">
-                      <span className="font-mono text-amber-400 text-xs bg-amber-400/10 px-2 py-1 rounded-lg">
-                        {p.sku_code}
+                    <td className="sticky left-0 z-10 bg-ink-800 px-4 py-4">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono text-amber-400 text-xs bg-amber-400/10 px-2 py-1 rounded-lg">
+                            {p.sku_code}
+                          </span>
+                          <span className="text-xs bg-ink-700 text-slate-300 px-2 py-1 rounded-lg border border-ink-600">
+                            {p.category}
+                          </span>
+                        </div>
+                        <p className="text-slate-200 font-body text-sm">
+                          {p.product_name || <span className="text-slate-600 italic text-xs">—</span>}
+                        </p>
+                      </div>
+                    </td>
+
+                    {SIZE_ORDER.map(size => (
+                      <td key={size} className="px-3 py-4 text-center">
+                        <span className="font-mono text-slate-200 text-sm">
+                          {(p.sizes?.[size] ?? 0).toLocaleString()}
+                        </span>
+                      </td>
+                    ))}
+
+                    <td className="px-3 py-4 text-center">
+                      <span
+                        className={`font-mono font-medium text-sm ${(p.total_inventory ?? 0) <= 10 ? 'text-red-400' : (p.total_inventory ?? 0) <= 50 ? 'text-yellow-400' : 'text-green-400'}`}
+                      >
+                        {(p.total_inventory ?? 0).toLocaleString()}
                       </span>
                     </td>
-                    <td className="px-4 py-4 text-slate-200 font-body">
-                      {p.product_name || <span className="text-slate-600 italic text-xs">—</span>}
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className="text-xs bg-ink-700 text-slate-300 px-2 py-1 rounded-lg border border-ink-600">
-                        {p.category}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className={`font-mono font-medium text-sm ${p.inventory <= 10 ? 'text-red-400' : p.inventory <= 50 ? 'text-yellow-400' : 'text-green-400'}`}>
-                        {p.inventory.toLocaleString()}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-slate-400 font-body text-xs">
+
+                    <td className="px-3 py-4 text-center text-slate-400 font-body text-xs whitespace-nowrap">
                       {formatDate(p.latest_updated_date)}
                     </td>
-                    {user?.role === 'manager' && (
-                      <td className="px-4 py-4">
+
+                    {isManager && (
+                      <td className="px-3 py-4 text-center">
                         <button
                           onClick={() => onEditClick(p)}
-                          className="text-xs text-amber-400 hover:text-amber-300 border border-amber-400/30 hover:border-amber-400 px-3 py-1.5 rounded-lg transition-all"
+                          className="text-xs text-amber-400 hover:text-amber-300 border border-amber-400/30 hover:border-amber-400 px-3 py-2 rounded-lg transition-all"
                         >
                           Update
                         </button>
@@ -192,62 +234,6 @@ export default function ProductTable({ products, loading, onEditClick }) {
             </tbody>
           </table>
         </div>
-      </div>
-
-      {/* Mobile Cards */}
-      <div className="flex flex-col gap-3 md:hidden">
-        {loading ? (
-          Array(3).fill(0).map((_, i) => (
-            <div key={i} className="card p-4 flex flex-col gap-3">
-              <div className="skeleton h-4 w-1/3" />
-              <div className="skeleton h-4 w-2/3" />
-              <div className="skeleton h-4 w-1/2" />
-            </div>
-          ))
-        ) : filtered.length === 0 ? (
-          <div className="card p-10 text-center">
-            <p className="text-slate-500 font-body">No products found</p>
-          </div>
-        ) : (
-          filtered.map((p, i) => (
-            <div
-              key={p.sku_code}
-              className="card p-4 flex flex-col gap-3 animate-fadeUp"
-              style={{ animationDelay: `${i * 0.04}s` }}
-            >
-              <div className="flex items-start justify-between">
-                <span className="font-mono text-amber-400 text-xs bg-amber-400/10 px-2 py-1 rounded-lg">
-                  {p.sku_code}
-                </span>
-                <span className={`font-mono font-medium text-sm ${p.inventory <= 10 ? 'text-red-400' : p.inventory <= 50 ? 'text-yellow-400' : 'text-green-400'}`}>
-                  {p.inventory.toLocaleString()} units
-                </span>
-              </div>
-
-              {p.product_name && (
-                <p className="text-slate-200 font-body font-medium">{p.product_name}</p>
-              )}
-
-              <div className="flex items-center justify-between">
-                <span className="text-xs bg-ink-700 text-slate-300 px-2 py-1 rounded-lg border border-ink-600">
-                  {p.category}
-                </span>
-                <span className="text-slate-500 font-body text-xs">
-                  {formatDate(p.latest_updated_date)}
-                </span>
-              </div>
-
-              {user?.role === 'manager' && (
-                <button
-                  onClick={() => onEditClick(p)}
-                  className="w-full text-center text-xs text-amber-400 hover:text-amber-300 border border-amber-400/30 hover:border-amber-400 px-3 py-2 rounded-lg transition-all mt-1"
-                >
-                  Update Inventory
-                </button>
-              )}
-            </div>
-          ))
-        )}
       </div>
 
     </div>

@@ -29,7 +29,7 @@ export const loginUser = (username, password) =>
 export const getProducts  = ()           => api.get('/products')
 export const getProduct   = (sku)        => api.get(`/products/${sku}`)
 export const createProduct = (data)      => api.post('/products', data)
-export const updateInventory = (sku, inventory) =>
-  api.put(`/products/${sku}`, { inventory })
+export const updateInventory = (sku, sizes) =>
+  api.put(`/products/${sku}`, { sizes })
 
 export default api

@@ -1,10 +1,19 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { createProduct } from '../services/api'
 
-const INITIAL = { sku_code: '', product_name: '', category: '', inventory: '' }
+const SIZE_ORDER = ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL']
+
+function createInitialForm() {
+  return {
+    sku_code: '',
+    product_name: '',
+    category: '',
+    sizes: Object.fromEntries(SIZE_ORDER.map(s => [s, '0'])),
+  }
+}
 
 export default function ProductForm({ onSuccess }) {
-  const [form, setForm]       = useState(INITIAL)
+  const [form, setForm]       = useState(createInitialForm)
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
   const [success, setSuccess] = useState('')
@@ -15,18 +24,41 @@ export default function ProductForm({ onSuccess }) {
     setSuccess('')
   }
 
+  const handleSizeChange = (size) => (e) => {
+    setForm(f => ({
+      ...f,
+      sizes: { ...f.sizes, [size]: e.target.value },
+    }))
+    setError('')
+    setSuccess('')
+  }
+
+  const totalUnits = useMemo(() => {
+    return SIZE_ORDER.reduce((sum, size) => {
+      const n = Number(form.sizes?.[size])
+      return sum + (Number.isFinite(n) ? n : 0)
+    }, 0)
+  }, [form.sizes])
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     setSuccess('')
 
-    if (!form.sku_code.trim() || !form.category.trim() || form.inventory === '') {
-      setError('SKU code, category and inventory are required.')
+    if (!form.sku_code.trim() || !form.category.trim()) {
+      setError('SKU code and category are required.')
       return
     }
-    if (parseInt(form.inventory) < 0) {
-      setError('Inventory cannot be negative.')
-      return
+
+    const sizesPayload = {}
+    for (const size of SIZE_ORDER) {
+      const raw = form.sizes?.[size] ?? '0'
+      const n = raw === '' ? 0 : Number(raw)
+      if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0) {
+        setError('All size quantities must be non-negative integers.')
+        return
+      }
+      sizesPayload[size] = n
     }
 
     setLoading(true)
@@ -35,10 +67,10 @@ export default function ProductForm({ onSuccess }) {
         sku_code:     form.sku_code.trim().toUpperCase(),
         product_name: form.product_name.trim() || null,
         category:     form.category.trim(),
-        inventory:    parseInt(form.inventory),
+        sizes:        sizesPayload,
       })
       setSuccess(`Product "${form.sku_code.toUpperCase()}" added successfully!`)
-      setForm(INITIAL)
+      setForm(createInitialForm())
       onSuccess?.()
     } catch (err) {
       const msg = err.response?.data?.detail || 'Failed to add product.'
@@ -98,18 +130,31 @@ export default function ProductForm({ onSuccess }) {
             maxLength={60}
           />
         </div>
+      </div>
 
-        <div>
-          <label className="label">Initial Inventory *</label>
-          <input
-            name="inventory"
-            type="number"
-            min="0"
-            value={form.inventory}
-            onChange={handleChange}
-            placeholder="e.g. 100"
-            className="input-field"
-          />
+      <div>
+        <p className="label">Sizes *</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {SIZE_ORDER.map(size => (
+            <div key={size}>
+              <label className="text-slate-500 font-body text-xs block mb-2">{size}</label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                inputMode="numeric"
+                value={form.sizes[size] ?? '0'}
+                onChange={handleSizeChange(size)}
+                className="input-field text-center font-mono"
+                placeholder="0"
+              />
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-3 bg-ink-900 rounded-xl px-4 py-3 flex items-center justify-between border border-ink-700">
+          <span className="text-slate-500 font-body text-xs">Total</span>
+          <span className="font-mono text-amber-400 text-sm">{totalUnits.toLocaleString()} units</span>
         </div>
       </div>
 

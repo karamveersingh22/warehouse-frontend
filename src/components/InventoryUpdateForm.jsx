@@ -1,14 +1,25 @@
-import { useState, useEffect } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { updateInventory } from '../services/api'
 
+const SIZE_ORDER = ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL']
+
+function createEmptySizes() {
+  return Object.fromEntries(SIZE_ORDER.map(s => [s, '0']))
+}
+
 export default function InventoryUpdateForm({ product, onSuccess, onCancel }) {
-  const [inventory, setInventory] = useState('')
+  const [sizes, setSizes]         = useState(createEmptySizes)
   const [loading, setLoading]     = useState(false)
   const [error, setError]         = useState('')
 
   useEffect(() => {
     if (product) {
-      setInventory(product.inventory.toString())
+      const next = createEmptySizes()
+      for (const size of SIZE_ORDER) {
+        const val = product.sizes?.[size]
+        next[size] = val === undefined || val === null ? '0' : String(val)
+      }
+      setSizes(next)
       setError('')
     }
   }, [product])
@@ -19,15 +30,20 @@ export default function InventoryUpdateForm({ product, onSuccess, onCancel }) {
     e.preventDefault()
     setError('')
 
-    const val = parseInt(inventory)
-    if (isNaN(val) || val < 0) {
-      setError('Please enter a valid non-negative number.')
-      return
+    const sizesPayload = {}
+    for (const size of SIZE_ORDER) {
+      const raw = sizes?.[size] ?? '0'
+      const n = raw === '' ? 0 : Number(raw)
+      if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0) {
+        setError('Please enter valid non-negative integers for all sizes.')
+        return
+      }
+      sizesPayload[size] = n
     }
 
     setLoading(true)
     try {
-      await updateInventory(product.sku_code, val)
+      await updateInventory(product.sku_code, sizesPayload)
       onSuccess?.()
     } catch (err) {
       const msg = err.response?.data?.detail || 'Update failed.'
@@ -37,13 +53,20 @@ export default function InventoryUpdateForm({ product, onSuccess, onCancel }) {
     }
   }
 
+  const totalUnits = useMemo(() => {
+    return SIZE_ORDER.reduce((sum, size) => {
+      const n = Number(sizes?.[size])
+      return sum + (Number.isFinite(n) ? n : 0)
+    }, 0)
+  }, [sizes])
+
   return (
     /* Backdrop */
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink-950/80 backdrop-blur-sm"
       onClick={(e) => { if (e.target === e.currentTarget) onCancel() }}
     >
-      <div className="card w-full max-w-sm p-6 animate-fadeUp">
+      <div className="card w-full max-w-md p-6 animate-fadeUp">
 
         {/* Header */}
         <div className="flex items-start justify-between mb-6">
@@ -69,7 +92,9 @@ export default function InventoryUpdateForm({ product, onSuccess, onCancel }) {
           </div>
           <div className="text-right">
             <p className="text-slate-500 text-xs font-body">Current</p>
-            <p className="font-mono font-medium text-amber-400">{product.inventory.toLocaleString()}</p>
+            <p className="font-mono font-medium text-amber-400">
+              {(product.total_inventory ?? 0).toLocaleString()}
+            </p>
           </div>
         </div>
 
@@ -81,15 +106,32 @@ export default function InventoryUpdateForm({ product, onSuccess, onCancel }) {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
-            <label className="label">New Inventory *</label>
-            <input
-              type="number"
-              min="0"
-              value={inventory}
-              onChange={e => { setInventory(e.target.value); setError('') }}
-              className="input-field text-center text-lg font-mono"
-              autoFocus
-            />
+            <p className="label">Sizes *</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {SIZE_ORDER.map((size, idx) => (
+                <div key={size}>
+                  <label className="text-slate-500 font-body text-xs block mb-2">{size}</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    inputMode="numeric"
+                    value={sizes[size] ?? '0'}
+                    onChange={e => {
+                      setSizes(s => ({ ...s, [size]: e.target.value }))
+                      setError('')
+                    }}
+                    className="input-field text-center font-mono"
+                    autoFocus={idx === 0}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-3 bg-ink-900 rounded-xl px-4 py-3 flex items-center justify-between border border-ink-700">
+              <span className="text-slate-500 font-body text-xs">Total</span>
+              <span className="font-mono text-amber-400 text-sm">{totalUnits.toLocaleString()} units</span>
+            </div>
           </div>
 
           <div className="flex gap-3">
